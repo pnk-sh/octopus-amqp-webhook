@@ -1,0 +1,39 @@
+name: Build & Deploy Dokcer image
+
+env:
+  docker_registry: pnksh
+  docker_repo: 'octopus-amqp-webhook'
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  docker_build_push:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    # - name: Build the Docker Unittest
+    #   id: docker_build_unittest
+    #   run: docker build -f .docker/test/Dockerfile -t unittest:${{ steps.vars.outputs.short_ref }} .
+
+    # - name: Run Docker test
+    #   id: docker_run_test
+    #   run: docker run --rm unittest:${{ steps.vars.outputs.short_ref }}
+
+    - name: Build the Docker image
+      id: docker_build
+      run: docker build -f .docker/Dockerfile -t ${{ env.docker_registry }}/${{ env.docker_repo }}:latest -t ${{ env.docker_registry }}/${{ env.docker_repo }}:${{ github.event.release.tag_name }} .
+
+    - name: Login to DockerHub
+      uses: docker/login-action@v1
+      with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Push to DockerHub
+      run: |
+        docker push ${{ env.docker_registry }}/${{ env.docker_repo }}:latest
+        docker push ${{ env.docker_registry }}/${{ env.docker_repo }}:${{ github.event.release.tag_name }}
