@@ -37,28 +37,57 @@ amqp.connect(`${process.env.AMQP_HOST}`, function(error0: any, connection: any) 
           tag: json_data.tag
         }
       }).then((resp) => {
-        
-        resp.data.services.forEach((service_data: any) => {
-          const cluster_id = service_data.ClusterID;
+        const service_count = resp.data.services.length
 
-          if (cluster_id) {
-            channel.assertQueue(`${deploy_queue}-${cluster_id}`, {
-              durable: false
-            });
-            
-            const deploy_msg = JSON.stringify({
-              "cluster_id": cluster_id,
-              "service_id": service_data.ID,
-              "image": service_data.Image,
-              "tag": json_data.tag
-            });
+        if (service_count > 0) {
+          axios.post(`${process.env.REST_API_HOST}webhook/${json_data.id}`, {
+            status: 'processing',
+            service_update_pending: service_count
+          })
 
-            channel.sendToQueue(`${deploy_queue}-${cluster_id}`, Buffer.from(deploy_msg));
-            console.log(" [x] Sent %s", deploy_msg);
-          }
-        });        
+          resp.data.services.forEach((service_data: any) => {
+            const cluster_id = service_data.ClusterID;
+
+            if (cluster_id) {
+              channel.assertQueue(`${deploy_queue}-${cluster_id}`, {
+                durable: false
+              });
+              
+              const deploy_msg = JSON.stringify({
+                "cluster_id": cluster_id,
+                "service_id": service_data.ID,
+                "image": service_data.Image,
+                "tag": json_data.tag
+              });
+
+              channel.sendToQueue(`${deploy_queue}-${cluster_id}`, Buffer.from(deploy_msg));
+              console.log(" [x] Sent %s", deploy_msg);
+
+              const new_date = new Date();
+              let utctime = new_date.toISOString()
+              utctime = utctime.replace('T', ' ')
+              utctime = utctime.replace('Z', '000')
+
+              axios.post(`${process.env.REST_API_HOST}logging`, {
+                summary: 'Sending service deploy to AMQP',
+                description: `Prepare deployment for ${service_data.Image}/${json_data.tag} on service-id ${service_data.ID}`,
+                created_at: utctime,
+                binds: [
+                  `service_id-${service_data.ID}`,
+                  `webhook_id-${json_data.id}`,
+                  `webhook_identifier-${json_data.identifier}`,
+                  `image_name-${service_data.Image}`,
+                  `image_tag-${json_data.tag}`,
+                ],
+              })
+            }
+          });
+        } else {
+          axios.post(`${process.env.REST_API_HOST}webhook/${json_data.id}`, {
+            status: 'cancel',
+          })
+        }
       })
-
     }, {
       noAck: true
     });
