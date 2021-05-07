@@ -59,7 +59,6 @@ amqp.connect(`${process.env.AMQP_HOST}`, function(error0: any, connection: any) 
                 "cluster_id": cluster_id,
                 "service_id": service_data.ID,
                 "webhook_id": json_data.id,
-                "webhook_identifier": json_data.identifier,
                 "image": service_data.Image,
                 "tag": json_data.tag
               });
