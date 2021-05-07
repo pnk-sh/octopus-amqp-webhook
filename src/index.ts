@@ -63,8 +63,7 @@ amqp.connect(`${process.env.AMQP_HOST}`, function(error0: any, connection: any) 
               channel.sendToQueue(`${deploy_queue}-${cluster_id}`, Buffer.from(deploy_msg));
               console.log(" [x] Sent %s", deploy_msg);
 
-              const new_date = new Date();
-              let utctime = new_date.toISOString()
+              let utctime = (new Date()).toISOString();
               utctime = utctime.replace('T', ' ')
               utctime = utctime.replace('Z', '000')
 
